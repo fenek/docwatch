@@ -1,8 +1,10 @@
 -module(docwatch_git).
 
--export([get_changed_files/1, get_changed_files/2]).
+-export([get_changed_files/1, get_changed_files/2, get_file_diff/2, get_file_diff/3]).
 
--define(FOO, 1).
+%% --------------------------------------
+%% API
+%% --------------------------------------
 
 get_changed_files(Path) ->
   case is_git_installed() of
@@ -65,6 +67,18 @@ calculate_function_arity(String) ->
       length(string:split(Args, ",", all))
   end.
 
+get_file_diff(Path, File) ->
+    get_file_diff(Path, File, get_default_branch(Path)).
+
+get_file_diff(Path, File, Main) ->
+    Result = os:cmd("cd " ++ Path ++ " && git diff " ++ Main ++ " -- " ++ File),
+    Lines = string:split(string:trim(Result, both), "\n", all),
+    {ok, lists:filter(fun lines_that_matter/1, Lines)}.
+
+%% --------------------------------------
+%% Internal functions
+%% --------------------------------------
+
 is_git_installed() ->
   case os:find_executable("git") of
     false ->
@@ -88,3 +102,10 @@ filter_files_that_matter(FileName) ->
     {match, _} ->
       true
   end.
+
+% TODO: This one shouldn't be hardcoded
+lines_that_matter([_ | "<!--dw:bind" ++ _]) -> false;
+lines_that_matter([$- | [T1, T2 | _]]) when [T1, T2] /= "--" -> true;
+lines_that_matter([$+ | [T1, T2 | _]]) when [T1, T2] /= "++" -> true;
+lines_that_matter(_) -> false.
+
