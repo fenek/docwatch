@@ -36,6 +36,7 @@ print(Input) ->
 bind_mods() ->
     [
      docwatch_bind_explicit,
-     docwatch_bind_backticks
+     docwatch_bind_backticks,
+     docwatch_bind_headers
     ].
 
