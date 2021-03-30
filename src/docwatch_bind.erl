@@ -34,5 +34,8 @@ print(Input) ->
 
 %% TODO: Make dynamic in the future
 bind_mods() ->
-    [docwatch_bind_explicit].
+    [
+     docwatch_bind_explicit,
+     docwatch_bind_backticks
+    ].
 
