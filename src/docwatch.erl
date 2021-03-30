@@ -9,13 +9,24 @@
 
 %% escript Entry point
 main([ProjectPath]) ->
-    ensure_dir(ProjectPath),
-    SrcDir = ensure_dir(ProjectPath, "src"),
-    DocDir = ensure_dir(ProjectPath, "doc"),
+    validate_dir(ProjectPath),
+    SrcDir = validate_dir(ProjectPath, "src"),
+    DocDir = validate_dir(ProjectPath, "doc"),
 
-    init_ets(),
-    read_sources(SrcDir),
-    read_docs(DocDir),
+    {ok, ChangedFiles} = docwatch_git:get_changed_files(ProjectPath),
+    {ChangedSrc, ChangedDocs0} = split_changed_files(ChangedFiles),
+    ChangedDocs = sanitize_changed_docs(ProjectPath, ChangedDocs0),
+
+    io:format("Changed sources: ~p~n", [ChangedSrc]),
+    io:format("Changed docs: ~p~n", [ChangedDocs]),
+
+    docwatch_reader:load_sources(SrcDir),
+    docwatch_reader:load_docs(DocDir),
+
+    Bindings = docwatch_bind:find(),
+    docwatch_bind:print(Bindings),
+
+    docwatch_bind:analyze(ProjectPath, Bindings, ChangedSrc, ChangedDocs),
 
     erlang:halt(0);
 main(_) ->
@@ -26,10 +37,10 @@ main(_) ->
 %% Internal functions
 %%====================================================================
 
-ensure_dir(Path1, Path2) ->
-    ensure_dir(filename:join(Path1, Path2)).
+validate_dir(Path1, Path2) ->
+    validate_dir(filename:join(Path1, Path2)).
 
-ensure_dir(Path) ->
+validate_dir(Path) ->
     case filelib:is_dir(Path) of
         true ->
             Path;
@@ -38,38 +49,22 @@ ensure_dir(Path) ->
             erlang:halt(1)
     end.
 
-init_ets() ->
-    ets:new(sources, [named_table, public]).
+split_changed_files(CF) ->
+    lists:foldl(fun("src" ++ _ = File, {Src, Doc}) ->
+                        {[File | Src], Doc};
+                   ("include" ++ _ = File, {Src, Doc}) ->
+                        {[File | Src], Doc};
+                   ("doc" ++ _ = File, {Src, Doc}) ->
+                        {Src, [File | Doc]};
+                   (_, Acc) ->
+                        Acc
+                end, {[], []}, CF).
 
-read_sources(SrcPath) ->
-    case filelib:wildcard("**/*.erl", SrcPath) of
-        [] ->
-            io:format("No .erl files found in ~p!~n~n", [SrcPath]);
-        Files ->
-            io:format("~p source files found. Processing...~n", [length(Files)]),
-            lists:foreach(fun(File) -> read_source(filename:join(SrcPath, File)) end, Files),
-            io:format("~nDone!~n", [])
+sanitize_changed_docs(_DocDir, []) ->
+    [];
+sanitize_changed_docs(DocDir, [ File | RFiles ]) ->
+    case docwatch_git:get_file_diff(DocDir, File) of
+        {ok, []} -> sanitize_changed_docs(DocDir, RFiles);
+        _ -> [ File | sanitize_changed_docs(DocDir, RFiles) ]
     end.
-
-read_source(File) ->
-    {ok, AST} = epp_dodger:quick_parse_file(File, [{no_fail, false}]),
-    Functions = lists:foldl(fun({function, LN, F, A, _}, Acc) -> [{LN, F, A} | Acc];
-                               (_, Acc) -> Acc
-                            end, [], AST),
-    Filename = filename:basename(File),
-    ets:insert(sources, {Filename, Functions}),
-    io:format("*").
-
-read_docs(DocPath) ->
-    case filelib:wildcard("**/*.md", DocPath) of
-        [] ->
-            io:format("No .md files found in ~p!~n~n", [DocPath]);
-        Files ->
-            io:format("~p documentation files found. Processing...~n", [length(Files)]),
-            lists:foreach(fun(File) -> read_doc(filename:join(DocPath, File)) end, Files),
-            io:format("~nDone!~n", [])
-    end.
-
-read_doc(_) ->
-    ok.
 
