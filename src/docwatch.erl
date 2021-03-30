@@ -13,8 +13,8 @@ main([ProjectPath]) ->
     SrcDir = validate_dir(ProjectPath, "src"),
     DocDir = validate_dir(ProjectPath, "doc"),
 
-    {ok, ChangedFiles} = docwatch_git:get_changed_files(ProjectPath),
-    {ChangedSrc, ChangedDocs0} = split_changed_files(ChangedFiles),
+    {ok, ChangedSrc} = docwatch_git:get_changed_sources(ProjectPath),
+    {ok, ChangedDocs0} = docwatch_git:get_changed_docs(ProjectPath),
     ChangedDocs = sanitize_changed_docs(ProjectPath, ChangedDocs0),
 
     io:format("Changed sources: ~p~n", [ChangedSrc]),
@@ -24,7 +24,7 @@ main([ProjectPath]) ->
     docwatch_reader:load_docs(DocDir),
 
     Bindings = docwatch_bind:find(),
-    docwatch_bind:print(Bindings),
+    %docwatch_bind:print(Bindings),
 
     docwatch_bind:analyze(ProjectPath, Bindings, ChangedSrc, ChangedDocs),
 
@@ -48,17 +48,6 @@ validate_dir(Path) ->
             io:format("~p not found! :(~n~n", [Path]),
             erlang:halt(1)
     end.
-
-split_changed_files(CF) ->
-    lists:foldl(fun("src" ++ _ = File, {Src, Doc}) ->
-                        {[File | Src], Doc};
-                   ("include" ++ _ = File, {Src, Doc}) ->
-                        {[File | Src], Doc};
-                   ("doc" ++ _ = File, {Src, Doc}) ->
-                        {Src, [File | Doc]};
-                   (_, Acc) ->
-                        Acc
-                end, {[], []}, CF).
 
 sanitize_changed_docs(_DocDir, []) ->
     [];

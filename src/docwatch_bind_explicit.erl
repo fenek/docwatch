@@ -75,6 +75,8 @@ print_if_only_src_changed(Src, ChSrc, Doc, ChDocs, Fmt, Vars) ->
             ok
     end.
 
+find_file(File, #{} = FileMap) ->
+    find_file(File, maps:keys(FileMap));
 find_file(File, Paths) ->
     lists:any(fun(Path) -> filename:basename(Path) == File end, Paths).
 
