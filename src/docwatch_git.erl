@@ -82,11 +82,11 @@ do_get_files(Path, Main, Extensions) ->
 do_get_lines(Path, FileNames) ->
   lists:foldl(fun(FileName, Acc) ->
     Functions = get_functions(Path, FileName),
-    maps:put(FileName, Functions, Acc)
+    maps:put(filename:basename(FileName), Functions, Acc)
   end, #{}, FileNames).
 
 get_functions(Path, FileName) ->
-  CmdResult = os:cmd("git diff -U0 " ++ Path ++ "/" ++ FileName),
+  CmdResult = os:cmd("cd " ++ Path ++ " && git diff -U0 " ++ FileName),
   Trimmed = string:trim(CmdResult, both),
   Splitted = string:split(Trimmed, "\n", all),
   Filtered = lists:filter(fun (Line) ->
@@ -102,8 +102,8 @@ get_functions(Path, FileName) ->
         TrimmedFunctionName = string:trim(ParsedFunctionName, both),
         [FunctionName, RestOfString] = string:split(TrimmedFunctionName, "(", all),
         ArityOfFunction = calculate_function_arity(RestOfString),
-        JoinedFunctions = string:join([FunctionName, integer_to_list(ArityOfFunction)], "/"),
-        {true, JoinedFunctions}
+        FA = {list_to_atom(FunctionName), ArityOfFunction},
+        {true, FA}
     end
   end, Filtered),
   lists:usort(Functions).
