@@ -82,7 +82,7 @@ get_default_branch(Path) ->
   string:trim(NotTrimmed, both).
 
 filter_files_that_matter(FileName) ->
-  case re:run(FileName, "\.(erl|hrl|md)") of
+  case re:run(FileName, "\.(erl|hrl)") of
     nomatch ->
       false;
     {match, _} ->
