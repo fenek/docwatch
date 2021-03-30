@@ -8,7 +8,7 @@ get_changed_files(Path) ->
       Main = get_default_branch(Path),
       get_changed_files(Path, Main);
     false ->
-      {error, "Git not found"}
+      {error, "Git not found."}
   end.
 
 get_changed_files(Path, Main) ->
@@ -20,7 +20,7 @@ get_changed_files(Path, Main) ->
       FilesThatMatter = lists:filter(fun filter_files_that_matter/1, FileNames),
       {ok, FilesThatMatter};
     false ->
-      {error, "Git not found"}
+      {error, "Git not found."}
   end.
 
 is_git_installed() ->
